@@ -503,9 +503,9 @@ class Watch {
 
   private:
     // DATA MEMBERS
+    std::unique_ptr<internal::Curl> handle_;
     Index prev_index_;
     std::string url_prefix_;
-    std::unique_ptr<internal::Curl> handle_;
 };
 
 #ifdef ETCD_SERVER
@@ -1161,7 +1161,7 @@ Run(const std::string& key, Watch::Callback callback, const Index& prevIndex) {
             callback(r);
 
             // Update the prevIndex and the watch url
-            prev_index_ = r.get_modified_index();
+            prev_index_ = r.GetModifiedIndex();
             watch_url = wait_url_base + std::to_string(prev_index_ + 1);
 
             // reset failures on a successful watch response
@@ -1236,7 +1236,7 @@ RunOnce(
         callback(r);
 
         // Update the prevIndex and the watch url
-        prev_index_ = r.get_modified_index();
+        prev_index_ = r.GetModifiedIndex();
         watch_url = wait_url_base + std::to_string(prev_index_ + 1);
 
     } catch (const ReplyException& e) {
@@ -1277,18 +1277,18 @@ RunOnce(
 
 namespace internal {
 
-extern "C" size_t
+extern "C" inline size_t
 _WriteCb(void* buffer_p, size_t size, size_t nmemb, internal::Curl* curl_p) {
     return curl_p->WriteCb(buffer_p, size, nmemb);
 }
 
-extern "C" size_t
+extern "C" inline size_t
 _HeaderCb(void* buffer_p, size_t size, size_t nmemb, internal::Curl* curl_p) {
     return curl_p->HeaderCb(buffer_p, size, nmemb);
 }
 
 #ifdef DEBUG
-extern "C" int
+extern "C" inline int
 _CurlTrace(CURL *handle, curl_infotype type,
            char *data, size_t size,
            void *userp);
@@ -1296,7 +1296,7 @@ _CurlTrace(CURL *handle, curl_infotype type,
 
 //------------------------------- LIFECYCLE ----------------------------------
 
-Curl::
+inline Curl::
 Curl()
   :handle_(NULL),
    enable_header_(false) {
@@ -1307,14 +1307,14 @@ Curl()
         throw CurlUnknownException("failed init");
 }
 
-Curl::
+inline Curl::
 ~Curl() {
     curl_easy_cleanup(handle_);
 }
 
 //------------------------------- OPERATIONS ---------------------------------
 
-std::string Curl::
+inline std::string Curl::
 Get(const std::string& url) {
     _ResetHandle();
     _SetGetOptions(url);
@@ -1325,7 +1325,7 @@ Get(const std::string& url) {
     return write_stream_.str();
 }
 
-std::string Curl::
+inline std::string Curl::
 Set(const std::string& url,
     const std::string& type,
     const CurlOptions& options) {
@@ -1339,7 +1339,7 @@ Set(const std::string& url,
     return write_stream_.str();
 }
 
-std::string Curl::
+inline std::string Curl::
 UrlEncode(const std::string& value) {
     char* encoded = curl_easy_escape(handle_, value.c_str(), (int)value.length());
     std::string retval (encoded);
@@ -1347,7 +1347,7 @@ UrlEncode(const std::string& value) {
     return retval;
 }
 
-std::string Curl::
+inline std::string Curl::
 UrlDecode(const std::string& value) {
     int out_len;
     char* decoded = curl_easy_unescape(handle_,
@@ -1357,17 +1357,17 @@ UrlDecode(const std::string& value) {
     return retval;
 }
 
-void Curl::
+inline void Curl::
 EnableHeader(bool onOff) {
     enable_header_ = onOff;
 }
 
-std::string Curl::
+inline std::string Curl::
 GetHeader() {
     return header_stream_.str();
 }
 
-size_t Curl::
+inline size_t Curl::
 WriteCb(void* buffer_p, size_t size, size_t nmemb) throw() {
     write_stream_ << std::string ((char*) buffer_p, size * nmemb);
     if (write_stream_.fail())
@@ -1375,7 +1375,7 @@ WriteCb(void* buffer_p, size_t size, size_t nmemb) throw() {
     return size * nmemb;
 }
 
-size_t Curl::
+inline size_t Curl::
 HeaderCb(void* buffer_p, size_t size, size_t nmemb) throw() {
     header_stream_ << std::string ((char*) buffer_p, size * nmemb);
     if (header_stream_.fail())
@@ -1390,7 +1390,7 @@ _CheckError(CURLcode err, const std::string& msg) {
     }
 }
 
-void Curl::
+inline void Curl::
 _ResetHandle() {
     curl_easy_reset(handle_);
 #ifdef  DEBUG
@@ -1401,7 +1401,7 @@ _ResetHandle() {
 #endif
 }
 
-void Curl::
+inline void Curl::
 _SetCommonOptions(const std::string& url) {
 
     // set url
@@ -1445,12 +1445,12 @@ _SetCommonOptions(const std::string& url) {
     _CheckError(err, "set write data");
 }
 
-void Curl::
+inline void Curl::
 _SetGetOptions(const std::string& url) {
     _SetCommonOptions(url);
 }
 
-void Curl::
+inline void Curl::
 _SetPostOptions(
     const std::string& url,
     const std::string& type,
