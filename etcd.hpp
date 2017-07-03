@@ -56,6 +56,7 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <functional>
 #include <string>
 
 #ifndef ETCD_SERVER
