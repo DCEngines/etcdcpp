@@ -94,7 +94,7 @@ struct ClientException : public std::runtime_error {
         error(error)
       {}
 
-    virtual const char* what() const throw() {
+    virtual const char* what() const throw() override {
         return error.c_str();
     }
 
@@ -111,7 +111,7 @@ struct ServerException : public std::runtime_error {
         error(error)
       {}
 
-    virtual const char* what() const throw() {
+    virtual const char* what() const throw() override {
         return error.c_str();
     }
 
@@ -129,19 +129,20 @@ struct ReplyException : public std::runtime_error {
                   const std::string& cause)
        :std::runtime_error("etcd exception"),
         cause(cause),
-        error_code(error_code),
-        msg(msg)
-      {}
-
-    virtual const char* what() const throw() {
+        error_code(error_code)
+      {
         std::ostringstream estr;
         estr << msg << "["<< error_code << "]: " << cause;
-        return estr.str().c_str();
+        msg_ = estr.str();
+      }
+
+    virtual const char* what() const throw() override {
+        return msg_.c_str();
     }
 
     std::string cause;
     int error_code; 
-    std::string msg;
+    std::string msg_;
 };
 
 // ---------------------------- TYPES ---------------------------------------
@@ -767,7 +768,7 @@ struct CurlUnknownException : public std::runtime_error {
         error(error)
       {}
 
-    virtual const char* what() const throw() {
+    virtual const char* what() const throw() override {
         return error.c_str();
     }
 
@@ -779,18 +780,20 @@ struct CurlException : public std::runtime_error {
                   const std::string& msg)
        :std::runtime_error("curl exception"),
         error_code(errorCode),
-        msg(msg)
-      {}
-
-    virtual const char* what() const throw() {
+        msg_(msg)
+      {
         std::ostringstream estr;
-        estr << msg << " [code: " << error_code << "] ";
+        estr << msg_ << " [code: " << error_code << "] ";
         estr << curl_easy_strerror(error_code);
-        return estr.str().c_str();
+        msg_ = estr.str();
+      }
+
+    virtual const char* what() const throw() override {
+        return msg_.c_str();
     }
 
     CURLcode error_code; 
-    std::string msg;
+    std::string msg_;
 };
 
 typedef std::map<std::string, std::string> CurlOptions;
