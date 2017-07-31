@@ -55,6 +55,7 @@
 #include <curl/curl.h>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <sstream>
 #include <functional>
 #include <string>
@@ -829,6 +830,12 @@ class Curl {
     std::ostringstream header_stream_;
     bool enable_header_;
 
+    // libcurl is not thread-safe
+    // https://curl.haxx.se/libcurl/c/threadsafe.html
+    // but we are calling etcd client via ClusterManager from multiple threads
+    // so adding mutex here
+    std::mutex mutex_;
+
     // LIFECYCLE
     Curl(const Curl& rhs);
     void operator=(const Curl&& rhs);
@@ -1320,6 +1327,7 @@ inline Curl::
 
 inline std::string Curl::
 Get(const std::string& url) {
+    std::unique_lock<std::mutex> l(mutex_);
     _ResetHandle();
     _SetGetOptions(url);
 
@@ -1333,6 +1341,7 @@ inline std::string Curl::
 Set(const std::string& url,
     const std::string& type,
     const CurlOptions& options) {
+    std::unique_lock<std::mutex> l(mutex_);
 
     _ResetHandle();
     _SetPostOptions(url, type, options);
@@ -1345,6 +1354,7 @@ Set(const std::string& url,
 
 inline std::string Curl::
 UrlEncode(const std::string& value) {
+    std::unique_lock<std::mutex> l(mutex_);
     char* encoded = curl_easy_escape(handle_, value.c_str(), (int)value.length());
     std::string retval (encoded);
     curl_free(encoded);
@@ -1353,6 +1363,7 @@ UrlEncode(const std::string& value) {
 
 inline std::string Curl::
 UrlDecode(const std::string& value) {
+    std::unique_lock<std::mutex> l(mutex_);
     int out_len;
     char* decoded = curl_easy_unescape(handle_,
             value.c_str(), (int) value.length(), &out_len);
